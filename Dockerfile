@@ -3,6 +3,7 @@ FROM       debian:stretch
 
 ## ensure locale is set during build
 ENV LANG            C.UTF-8
+ENV STACK_ROOT      /stack_cache
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git zlib1g-dev libtinfo-dev libsqlite3-dev g++ netbase xz-utils make libgmp-dev && \
@@ -11,14 +12,19 @@ RUN apt-get update && \
     export GNUPGHOME="$(mktemp -d)" && \
     # ipv6 has to be explicitely enabled in docker but gpg uses it to receive keys
     echo "disable-ipv6" >> ${GNUPGHOME}/dirmngr.conf && \
-    gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys C5705533DA4F78D8664B5DC0575159689BEFB442 && \
+    gpg --batch --keyserver keyserver.ubuntu.com --recv-keys C5705533DA4F78D8664B5DC0575159689BEFB442 && \
     gpg --batch --verify stack.tar.gz.asc stack.tar.gz && \
     tar -xf stack.tar.gz -C /usr/local/bin --strip-components=1 && \
-    rm -rf "$GNUPGHOME" /var/lib/apt/lists/* /stack.tar.gz.asc /stack.tar.gz
+    rm -rf "$GNUPGHOME" /var/lib/apt/lists/* /stack.tar.gz.asc /stack.tar.gz \
+    # Create folder to copy stack files to for later access
+    mkdir stack_cache \
+    chmod -R a+rw /stack_cache
 
 # Place configuration files
-COPY stack/config.yaml /root/.stack/config.yaml
-COPY stack/global-project/stack.yaml /root/.stack/global-project/stack.yaml
+# COPY stack/config.yaml /root/.stack/config.yaml
+# COPY stack/global-project/stack.yaml /root/.stack/global-project/stack.yaml
+COPY stack/config.yaml stackroot/config.yaml
+COPY stack/global-project/stack.yaml stackroot/global-project/stack.yaml
 
 # setup stack and run ghc once to prefetch commonly used dependencies
 RUN stack ghc --package QuickCheck --package quickcheck-assertions --package smallcheck --package tasty --package tasty-quickcheck --package tasty-smallcheck --package tasty-hunit --package tasty-ant-xml --package unordered-containers -- --version
